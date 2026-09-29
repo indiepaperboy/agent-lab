@@ -58,9 +58,9 @@ The report can be filtered to allocated rows or exceptions and downloaded as CSV
 
 The app is ready for GitHub Pages. All paths are relative and work under `/agent-lab/`.
 
-In **Settings → Pages**, select **Deploy from a branch**, then **main / (root)**. No build step is needed; `.nojekyll` preserves the static assets. The expected site address is `https://indiepaperboy.github.io/agent-lab/` once Pages is enabled and deployment succeeds.
+In **Settings → Pages**, select **Deploy from a branch**, then **main / (root)**. No build step is needed; `.nojekyll` preserves the static assets. The published site is [Agent Lab](https://indiepaperboy.github.io/agent-lab/).
 
-The repository is private. Pages availability depends on the account plan; the repository's visibility does not determine whether a published website is private. The app itself contains only fictional example data.
+The repository and GitHub Pages website are public. The app contains only fictional example data. Changes pushed to main are published automatically.
 
 ## Development and checks
 
