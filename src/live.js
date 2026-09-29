@@ -27,8 +27,7 @@
       engine = loaded;
     } catch (error) { if (id === generation) stop(); throw error; }
   }
-  async function decide(history, objective) {
-    if (!engine) throw new Error('Download and load the local model first.');
+  function buildRequest(history, objective) {
     const messages = [{ role: 'system', content: system }, { role: 'user', content: objective }];
     for (const entry of history) {
       messages.push({ role: 'assistant', content: JSON.stringify(entry.action) });
@@ -36,11 +35,15 @@
     }
     if (!history.length) messages[messages.length - 1].content += '\nBegin by calling list_files with empty args to discover the available filenames.';
     else messages[messages.length - 1].content += '\nChoose a NEW useful action using this result. Do not repeat a prior call. If search found nothing, use list_files (if not already called), then read a relevant file by its exact name from the file list. When the evidence is sufficient, answer with sources.';
-    const result = await engine.chat.completions.create({ messages, temperature: 0.2, max_tokens: 750, enable_thinking: false, response_format: { type: 'json_object', schema } });
+    return { messages, temperature: 0.2, max_tokens: 750, enable_thinking: false, response_format: { type: 'json_object', schema } };
+  }
+  async function decide(history, objective, request) {
+    if (!engine) throw new Error('Download and load the local model first.');
+    const result = await engine.chat.completions.create(request || buildRequest(history, objective));
     const content = result.choices?.[0]?.message?.content;
     let value;
     try { value = JSON.parse(content); } catch { throw new Error('The local model returned invalid JSON. Try the step again, or restart in Guided rehearsal.'); }
     return LabAgent.validateAction(value);
   }
-  globalThis.LabLive = { load, decide, stop, get ready() { return !!engine; }, model };
+  globalThis.LabLive = { load, decide, buildRequest, stop, get ready() { return !!engine; }, model };
 })();

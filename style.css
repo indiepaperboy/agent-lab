@@ -933,3 +933,24 @@ dialog pre {
     scroll-behavior:auto!important;
   }
 }
+/* The current event is a narrated lesson, followed by its inspectable output. */
+.stages { flex-wrap: wrap; gap: 5px; font-size: 8px; padding: 14px 10px; }
+.mode-disclosure { padding: 12px 24px; color: var(--cyan); background: #18221e; border-bottom: 1px solid var(--line); font-size: 11px; line-height: 1.7; }
+.step-lesson { margin-top: 14px; }
+.lesson-who { color: var(--cyan); font: 10px var(--mono); letter-spacing: .6px; }
+.event .lesson-title { font-size: 22px; line-height: 1.35; letter-spacing: -.4px; margin: 9px 0 20px; }
+.lesson-block { margin: 15px 0; }
+.lesson-block h4 { font: 9px var(--mono); color: var(--lime); letter-spacing: 1px; margin: 0 0 6px; }
+.lesson-block p { font-size: 13px; line-height: 1.75; color: #d5dfcd; margin: 0; }
+.lesson-next { border-top: 1px solid #46563a; padding-top: 14px; color: var(--cyan); font-size: 12px; line-height: 1.7; }
+.request-details { margin-top: 12px; border-top: 1px solid #46563a; color: var(--cyan); font-size: 12px; }
+.request-details summary { list-style: disclosure-closed; margin-left: 15px; line-height: 1.7; }
+.request-details[open] summary { list-style: disclosure-open; }
+.console-scroll { min-height: 520px; max-height: 760px; }
+@media(max-width:720px) {
+  .console-scroll { height: 610px; min-height: 0; max-height: none; }
+  .event { padding: 15px; }
+  .event .lesson-title { font-size: 20px; }
+  .mode-disclosure { padding: 12px 18px; }
+  .lesson-block p { font-size: 12px; }
+}

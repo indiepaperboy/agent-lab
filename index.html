@@ -5,8 +5,8 @@
   <meta name="theme-color" content="#101211"><meta name="description" content="An open notebook for the agent loop. Investigate a fictional delivery delay, one observable action at a time.">
   <title>Agent Lab — Case Investigator</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23101211'/%3E%3Cpath d='M18 45 32 17 46 45M23 35h18' stroke='%23c7f68b' stroke-width='5' fill='none'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css">
-  <script defer src="src/data.js"></script><script defer src="src/tools.js"></script><script defer src="src/agent.js"></script><script defer src="src/live.js?v=2"></script><script defer src="src/app.js?v=1"></script>
+  <link rel="stylesheet" href="style.css?v=3">
+  <script defer src="src/data.js"></script><script defer src="src/tools.js"></script><script defer src="src/agent.js?v=3"></script><script defer src="src/live.js?v=3"></script><script defer src="src/tutorial.js?v=3"></script><script defer src="src/app.js?v=3"></script>
 </head>
 <body>
 <header class="topbar"><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">⌁</span> agent lab<span class="version">/ 01</span></a><span class="top-caption">A small window into how agents work.</span><button id="about-open" class="text-button">How it works <span aria-hidden="true">↗</span></button></header>
@@ -26,9 +26,9 @@
     </aside>
     <section class="console-panel" aria-label="Live agent console">
       <div class="console-header"><div><span class="dot"></span><h2>Live agent console</h2></div><span id="status" class="status">Ready to investigate</span></div>
-      <nav id="stages" class="stages" aria-label="Agent loop stages"><span data-stage="GOAL">GOAL</span><b>→</b><span data-stage="DECIDE" data-position="first">DECIDE</span><b>→</b><span data-stage="TOOL">TOOL</span><b>→</b><span data-stage="OBSERVE">OBSERVE</span><b>→</b><span data-stage="DECIDE" data-position="repeat">DECIDE</span><b>→ … →</b><span data-stage="ANSWER">ANSWER</span></nav>
+      <nav id="stages" class="stages" aria-label="Agent loop stages"><span data-stage="GOAL">YOUR GOAL</span><b>→</b><span data-stage="ASK">APP ASKS LLM</span><b>→</b><span data-stage="DECIDE">LLM CHOOSES</span><b>→</b><span data-stage="TOOL">TOOL REQUEST</span><b>→</b><span data-stage="OBSERVE">APP RETURNS RESULT</span><b>↻</b><span data-stage="ANSWER">ANSWER</span></nav><div id="mode-disclosure" class="mode-disclosure"></div>
       <div class="console-toolbar"><div class="segmented" role="group" aria-label="Playback mode"><button id="step-mode" aria-pressed="true">Step</button><button id="auto-mode" aria-pressed="false">Auto</button></div><label class="raw-toggle"><input id="raw" type="checkbox"> Raw events</label><span id="event-count" class="tiny muted">00 EVENTS</span></div>
-      <div id="console" class="console-scroll" tabindex="0" aria-label="Investigation events"><div class="empty-state"><div class="orbit" aria-hidden="true"><span>⌁</span><i></i><i></i><i></i></div><p class="eyebrow">EVERY ANSWER STARTS WITH A QUESTION</p><h3>Let’s open the case.</h3><p>Step through each decision, tool request and result.<br>You set the pace. Nothing runs ahead.</p><span class="empty-hint">Press <kbd>Next step</kbd> to begin <span aria-hidden="true">↘</span></span></div></div>
+      <div id="console" class="console-scroll" tabindex="0" aria-label="Investigation events"><div class="empty-state"><div class="orbit" aria-hidden="true"><span>⌁</span><i></i><i></i><i></i></div><p class="eyebrow">EVERY ANSWER STARTS WITH A QUESTION</p><h3>Let’s see where the LLM fits.</h3><p>See what the model is given, how it chooses an action,<br>and what the app does with that choice. Each click explains one part.</p><span class="empty-hint">Press <kbd>Next step</kbd> to begin <span aria-hidden="true">↘</span></span></div></div>
       <div class="console-footer"><div><span id="next-label" class="field-label">UP NEXT · GOAL</span><p id="next-hint">Give the investigator its objective.</p></div><button id="next" class="primary">Next step <span aria-hidden="true">→</span></button><button id="restart" class="icon-button" aria-label="Restart investigation" title="Restart investigation">↺</button></div>
     </section>
   </section>

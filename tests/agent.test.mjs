@@ -4,6 +4,8 @@ import { readFile, readdir } from 'node:fs/promises';
 import '../src/data.js';
 import '../src/tools.js';
 import '../src/agent.js';
+import '../src/live.js';
+import '../src/tutorial.js';
 const { execute, parseCSV } = globalThis.LabTools;
 const { AgentLoop, rehearsalDecide } = globalThis.LabAgent;
 test('embedded files exactly match the auditable dataset', async () => {
@@ -35,7 +37,7 @@ test('arithmetic precedence and CSV quoting work without code execution', () => 
 });
 test('step advances exactly one event; requests do not execute tools', async () => {
   const loop = new AgentLoop(rehearsalDecide);
-  for (const stage of ['GOAL','DECIDE','TOOL']) {
+  for (const stage of ['GOAL','ASK','DECIDE','TOOL']) {
     const before = loop.events.length;
     assert.equal((await loop.next()).stage, stage);
     assert.equal(loop.events.length, before+1);
@@ -47,7 +49,7 @@ test('step advances exactly one event; requests do not execute tools', async () 
 test('complete rehearsal is backed by tool outputs, terminates and restarts cleanly', async () => {
   const loop = new AgentLoop(rehearsalDecide);
   while (!loop.done) await loop.next();
-  assert.equal(loop.events.length,30);
+  assert.equal(loop.events.length,40);
   assert.equal(loop.history.length,9);
   assert.ok(loop.history.every(h=>h.result.ok));
   assert.match(loop.events.at(-1).data.answer,/205 minutes/);
@@ -60,19 +62,47 @@ test('complete rehearsal is backed by tool outputs, terminates and restarts clea
 test('async decision cannot advance twice and a failed decision can be retried', async () => {
   let resolve;
   const loop = new AgentLoop(()=>new Promise(r=>{resolve=r}));
-  await loop.next(); const pending = loop.next();
+  await loop.next(); await loop.next(); const pending = loop.next();
   assert.equal(await loop.next(),null);
   resolve({type:'tool',summary:'List evidence',tool:'list_files',args:{}});
-  assert.equal((await pending).stage,'DECIDE'); assert.equal(loop.events.length,2);
+  assert.equal((await pending).stage,'DECIDE'); assert.equal(loop.events.length,3);
   let fails = true;
   const retry = new AgentLoop(async()=>{if(fails) throw new Error('offline'); return {type:'tool',summary:'List',tool:'list_files',args:{}};});
-  await retry.next(); await assert.rejects(retry.next(),/offline/);
+  await retry.next(); await retry.next(); await assert.rejects(retry.next(),/offline/);
   assert.equal(retry.phase,'decide'); assert.equal(retry.busy,false);
   fails=false; assert.equal((await retry.next()).stage,'DECIDE');
 });
 test('a model receives previous observations and can recover from a tool error', async () => {
   const loop = new AgentLoop(async history => history.length === 0 ? {type:'tool',summary:'Read',tool:'read_file',args:{file:'missing.txt'}} : history[0].result.ok ? null : {type:'tool',summary:'Discover files',tool:'list_files',args:{}});
-  for(let i=0;i<4;i++) await loop.next();
+  for(let i=0;i<5;i++) await loop.next();
   assert.equal(loop.history[0].result.ok,false);
-  await loop.next(); assert.equal(loop.pending.tool,'list_files');
+  await loop.next(); await loop.next(); assert.equal(loop.pending.tool,'list_files');
+});
+
+test('visible request is the exact input passed to the decision maker and contains only observed evidence', async () => {
+  let received;
+  const loop = new AgentLoop(async (history, goal, request) => { received = request; return {type:'tool',summary:'Discover',tool:'list_files',args:{}}; }, 'Investigate delays', LabLive.buildRequest);
+  await loop.next(); const first = await loop.next();
+  assert.equal(first.stage, 'ASK');
+  assert.equal(first.observations, 0);
+  assert.equal(received, undefined);
+  assert.equal(first.data.messages.length, 2);
+  assert.ok(!JSON.stringify(first.data).includes('power supply failed'));
+  await loop.next(); assert.deepEqual(received, first.data);
+  await loop.next(); await loop.next();
+  const second = await loop.next();
+  assert.equal(second.observations, 1);
+  assert.equal(second.data.messages.length, 4);
+  assert.match(second.data.messages.at(-1).content, /deliveries.csv/);
+  assert.equal(first.data.messages.length, 2, 'previous request remains unchanged');
+});
+test('tutorial follows actual results and does not pretend rehearsal calls a model', () => {
+  const input = {stage:'ASK', observations:0};
+  assert.match(LabTutorial.explain(input,false).next, /authored choice/);
+  assert.match(LabTutorial.explain(input,true).why, /explicitly instructs/);
+  const empty = LabTutorial.explain({stage:'OBSERVE',tool:'search_files',data:{ok:true,data:[]}},true);
+  assert.match(empty.what,/no matches/);
+  assert.doesNotMatch(empty.what,/Newcastle/);
+  const changed = LabTutorial.explain({stage:'OBSERVE',tool:'query_csv',data:{ok:true,data:[{warehouse:'WH-02',avg_delay_minutes:120},{warehouse:'WH-04',avg_delay_minutes:2}]}},true);
+  assert.match(changed.what,/WH-02: 120/);
 });

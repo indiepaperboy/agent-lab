@@ -31,17 +31,21 @@
     return value;
   }
   class AgentLoop {
-    constructor(decide, objective = goal) { this.decide = decide; this.goal = objective; this.events = []; this.history = []; this.phase = 'goal'; this.busy = false; this.done = false; this.pending = null; }
+    constructor(decide, objective = goal, buildRequest = (history, objective) => ({ objective, tools: LabTools.definitions, observations: history })) { this.buildRequest = buildRequest; this.request = null; this.decide = decide; this.goal = objective; this.events = []; this.history = []; this.phase = 'goal'; this.busy = false; this.done = false; this.pending = null; }
     async next() {
       if (this.busy || this.done) return null;
       this.busy = true;
       try {
         let event;
         if (this.phase === 'goal') {
-          event = { stage: 'GOAL', summary: this.goal, data: { objective: this.goal, caseDate: date } }; this.phase = 'decide';
+          event = { stage: 'GOAL', summary: this.goal, data: { objective: this.goal, caseDate: date } }; this.phase = 'ask';
+        } else if (this.phase === 'ask') {
+          this.request = structuredClone(this.buildRequest(this.history, this.goal));
+          event = { stage: 'ASK', summary: 'The app prepares the next model request.', data: this.request, observations: this.history.length };
+          this.phase = 'decide';
         } else if (this.phase === 'decide') {
           if (this.history.length >= 20) throw new Error('Reached the 20-tool limit. Review the evidence or restart.');
-          this.pending = validateAction(await this.decide(this.history, this.goal));
+          this.pending = validateAction(await this.decide(this.history, this.goal, this.request));
           event = { stage: 'DECIDE', summary: this.pending.summary, data: this.pending };
           this.phase = this.pending.type === 'answer' ? 'answer' : 'tool';
         } else if (this.phase === 'tool') {
@@ -50,7 +54,7 @@
           const result = LabTools.execute(this.pending.tool, this.pending.args);
           this.history.push({ action: this.pending, result });
           event = { stage: 'OBSERVE', summary: result.ok ? `Result from ${this.pending.tool}` : `Tool error: ${this.pending.tool}`, data: result, tool: this.pending.tool, args: this.pending.args };
-          this.phase = 'decide';
+          this.phase = 'ask';
         } else {
           event = { stage: 'ANSWER', summary: this.pending.summary, data: this.pending }; this.done = true;
         }

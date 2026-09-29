@@ -19,14 +19,15 @@ Then open http://localhost:8000. This is only a static file server; there is no 
 ## Present the demo
 
 1. Start in **Step** mode and press **Next step** to supply the goal.
-2. Advance to **DECIDE** to see a concise action summary.
-3. Advance to **TOOL** to see the proposed tool and its exact arguments. The tool has not run yet.
-4. Press **Execute tool** to run it locally and emit **OBSERVE** with its real result.
-5. Continue as new evidence leads to more decisions, then an **ANSWER** with clickable source files.
-6. Restart, select **Auto**, then **Run auto** to replay the same event loop every 1.6 seconds. Pause or switch back to Step at any point. A pending model decision may finish, but no subsequent event runs while paused.
-7. Toggle **Raw events** to inspect the structured event objects. This is a view switch, not a second investigator. It never advances the loop.
+2. Advance to **ASK** to inspect the input prepared for the LLM: instructions, goal, tools and previous results. This step does not call the model yet.
+3. Advance to **DECIDE** to call the local model (or reveal the authored rehearsal choice). Its chosen action appears with an explanation.
+4. Advance to **TOOL** to see the proposed tool and its exact arguments. The tool has not run yet.
+5. Press **Execute tool** to run it locally and emit **OBSERVE** with its real result.
+6. Continue as new evidence leads to more decisions, then an **ANSWER** with clickable source files.
+7. Restart, select **Auto**, then **Run auto** to replay the same event loop every 8 seconds to leave time to read the teaching notes. Pause or switch back to Step at any point. A pending model decision may finish, but no subsequent event runs while paused.
+8. Toggle **Raw events** to inspect the structured event objects. This is a view switch, not a second investigator. It never advances the loop.
 
-The stage strip is `GOAL → DECIDE → TOOL → OBSERVE → DECIDE → … → ANSWER`. Every click adds exactly one observable event. Current events are bordered and highlighted; previous events are dimmed and remain scrollable. Raw output contains public summaries, actions, arguments, and observations, never hidden chain-of-thought.
+The stage strip is `GOAL → ASK → DECIDE → TOOL → OBSERVE → ASK → … → ANSWER`. Every click adds exactly one observable event. Each current event explains **what is happening**, **how it works**, **why it helps**, and **what comes next**. Teaching notes explain the visible mechanics and purpose, not private model reasoning. The visible ASK payload is the same request object passed to the live model on the next click. The tutorial explicitly identifies the instruction that guides the first `list_files` call. Current events are bordered and highlighted; previous events are dimmed and remain scrollable. Raw output contains public summaries, actions, arguments, and observations, never hidden chain-of-thought.
 
 ## Two honest decision makers
 
@@ -117,6 +118,7 @@ Any other static host can serve the same folder unchanged.
 - `src/agent.js`: one-event-at-a-time loop and authored rehearsal.
 - `src/live.js`, `model-worker.js`: optional local model, structured action contract and cancellation.
 - `src/app.js`: playback, rendering, highlighting, scrolling, sources and UI controls.
+- `src/tutorial.js`: per-event teaching notes about the actors, mechanics, purpose and next hand-off.
 - `scripts/bundle-data.mjs`: regenerate browser data from the canonical files.
 - `tests/agent.test.mjs`: Node built-in tests for evidence consistency, tools, calculations, event ordering, completion, concurrent-step protection and error recovery.
 
@@ -124,7 +126,13 @@ Run `npm test` with a modern Node.js version. There are no npm dependencies to i
 
 ### Verified on 29 September 2026
 
-- All 9 automated tests passed.
-- Browser checks covered all 30 rehearsal events, full Auto completion, pause/resume, restart, Raw view, current-event highlighting, source dialogs and Escape dismissal.
+- Initial implementation: all 9 automated tests passed.
+- Initial implementation browser checks covered all 30 rehearsal events, full Auto completion, pause/resume, restart, Raw view, current-event highlighting, source dialogs and Escape dismissal.
 - Desktop and 390px-wide layouts were inspected with screenshots; the narrow layout had no horizontal page overflow.
 - The optional Qwen3 model downloaded and loaded in the test browser, then completed a real 12-event investigation. It selected `list_files`, `search_files`, and `read_file` and identified the Newcastle conveyor power-supply failure. This validates the integration on that environment, not every WebGPU device or future model run.
+
+### In-app tutorial update
+
+The narrated walkthrough adds a separate input-preparation event before every decision (40 events in the full rehearsal). Eleven automated tests cover the loop, exact visible/request payload identity, observation history, and explanations based on actual returned data. The hand-off strip names the actors explicitly: your goal, app asks LLM, LLM chooses, tool request, app returns result, answer. Rehearsal remains clearly labelled as authored throughout.
+
+The updated browser walkthrough was checked through all 40 rehearsal events. A real local-model run also verified the new input step, model-selected action, tool execution, and updated request containing the returned result. Desktop and narrow-layout screenshots were inspected.

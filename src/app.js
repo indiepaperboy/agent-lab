@@ -2,8 +2,8 @@
   'use strict';
   const $ = id => document.getElementById(id);
   let mode = 'step', running = false, timer = null, version = 0, loading = false;
-  let loop = new LabAgent.AgentLoop(LabAgent.rehearsalDecide);
-  const hints = { goal: 'Give the investigator its objective.', decide: 'Choose the next action using the available evidence.', tool: 'Reveal the tool name and its arguments.', observe: 'Execute the tool and return its result.', answer: 'Connect the evidence into a final answer.' };
+  let loop = new LabAgent.AgentLoop(LabAgent.rehearsalDecide, LabAgent.goal, LabLive.buildRequest);
+  const hints = { goal: 'Give the investigator its objective.', ask: 'See the input prepared for the language model.', decide: 'Choose the next action using the available evidence.', tool: 'Reveal the tool name and its arguments.', observe: 'Execute the tool and return its result.', answer: 'Connect the evidence into a final answer.' };
   const element = (tag, className, text) => { const el = document.createElement(tag); if (className) el.className = className; if (text !== undefined) el.textContent = text; return el; };
   function openFile(name) { $('file-title').textContent = name; $('file-content').textContent = AgentData[name]; $('file-dialog').showModal(); }
   for (const [name] of Object.entries(AgentData)) {
@@ -22,11 +22,12 @@
     $('auto-mode').setAttribute('aria-pressed', String(mode === 'auto'));
     $('next').disabled = loop.done || loading || (loop.busy && !running) || ($('engine').value === 'live' && !LabLive.ready);
     $('next').textContent = running ? 'Pause Ⅱ' : loop.busy ? 'Choosing…' : loop.done ? 'Case closed ✓' : mode === 'auto' ? 'Run auto →' : loop.phase === 'observe' ? 'Execute tool →' : 'Next step →';
-    $('next-label').textContent = loop.done ? 'INVESTIGATION COMPLETE' : `UP NEXT · ${loop.phase.toUpperCase()}`;
+    $('next-label').textContent = loop.done ? 'INVESTIGATION COMPLETE' : `UP NEXT · ${{goal:'YOUR GOAL',ask:'PREPARE MODEL INPUT',decide:'CHOOSE AN ACTION',tool:'SHOW TOOL REQUEST',observe:'RUN THE TOOL',answer:'SHOW THE ANSWER'}[loop.phase]}`;
     $('next-hint').textContent = loop.done ? 'Restart to explore the loop again.' : hints[loop.phase];
     $('event-count').textContent = `${String(loop.events.length).padStart(2, '0')} EVENTS`;
     $('objective').readOnly = $('engine').value === 'rehearsal' || loop.events.length > 0 || loop.busy;
     $('load-model').disabled = loading || LabLive.ready;
+    $('mode-disclosure').textContent = $('engine').value === 'live' ? 'LOCAL AI · A real LLM chooses actions. The explanations are teaching notes, not private model thoughts.' : 'GUIDED REHEARSAL · The LLM’s role is illustrated with authored choices. Tools really run. Switch to Local AI for model-chosen actions.';
   }
   function sourceButton(name) { const button = element('button', '', name); button.onclick = () => openFile(name); return button; }
   function renderData(container, data) {
@@ -42,11 +43,26 @@
     const card = element('article', `event${current ? ' current' : ''}`);
     if (current) card.setAttribute('aria-current', 'step');
     const head = element('div', 'event-top');
-    const owners = { GOAL: 'YOU → INVESTIGATOR', DECIDE: $('engine').value === 'rehearsal' ? 'AUTHORED ACTION' : 'LOCAL MODEL', TOOL: 'REQUEST · NOT EXECUTED', OBSERVE: 'BROWSER → INVESTIGATOR', ANSWER: 'EVIDENCE → CONCLUSION' };
+    const owners = { ASK: $('engine').value === 'live' ? 'APP → LLM INPUT' : 'EXAMPLE MODEL INPUT', GOAL: 'YOU → INVESTIGATOR', DECIDE: $('engine').value === 'rehearsal' ? 'AUTHORED ACTION' : 'LOCAL MODEL', TOOL: 'REQUEST · NOT EXECUTED', OBSERVE: 'BROWSER → INVESTIGATOR', ANSWER: 'EVIDENCE → CONCLUSION' };
     head.append(element('span', 'event-id', String(event.id).padStart(2, '0')), element('span', '', event.stage), element('span', 'event-kind', owners[event.stage])); card.append(head);
+    if (current) {
+      const lesson = LabTutorial.explain(event, $('engine').value === 'live');
+      const panel = element('section', 'step-lesson');
+      panel.setAttribute('aria-label', 'Step explanation');
+      panel.append(element('p', 'lesson-who', lesson.who), element('h3', 'lesson-title', lesson.title));
+      for (const [label, value] of [['WHAT IS HAPPENING', lesson.what], ['HOW IT WORKS', lesson.how], ['WHY THIS HELPS', lesson.why]]) {
+        const block = element('div', 'lesson-block'); block.append(element('h4', '', label), element('p', '', value)); panel.append(block);
+      }
+      panel.append(element('p', 'lesson-next', lesson.next)); card.append(panel);
+    }
     if ($('raw').checked) card.append(element('pre', '', JSON.stringify(event, null, 2)));
     else {
       card.append(element('h3', event.stage === 'TOOL' ? 'tool-name' : '', event.summary));
+      if (event.stage === 'ASK') {
+        const packet = element('details', 'request-details');
+        packet.append(element('summary', '', $('engine').value === 'live' ? 'Inspect the exact request used on the next click' : 'Inspect the example request (no model called)'));
+        packet.append(element('pre', '', JSON.stringify(event.data, null, 2))); card.append(packet);
+      }
       if (event.stage === 'TOOL') card.append(element('pre', '', `${event.data.name}(${JSON.stringify(event.data.arguments, null, 2)})`));
       if (event.stage === 'OBSERVE') {
         if (!event.data.ok) card.append(element('pre', '', event.data.error));
@@ -62,7 +78,7 @@
     $('console').replaceChildren(...loop.events.map((event, i) => renderEvent(event, i === loop.events.length - 1)));
     const last = loop.events.at(-1);
     for (const stage of $('stages').querySelectorAll('[data-stage]')) {
-      const active = stage.dataset.stage === last.stage && (last.stage !== 'DECIDE' || stage.dataset.position === (loop.history.length ? 'repeat' : 'first'));
+      const active = stage.dataset.stage === last.stage;
       stage.classList.toggle('active', active);
       if (active) stage.setAttribute('aria-current', 'step'); else stage.removeAttribute('aria-current');
     }
@@ -98,7 +114,7 @@
     finally {
       if (id === version) {
         updateControls();
-        if (running && !activeLoop.done) timer = setTimeout(advance, 1600);
+        if (running && !activeLoop.done) timer = setTimeout(advance, 8000);
       }
     }
   }
@@ -114,7 +130,7 @@
   function restart() {
     pause(); version++;
     if (loop.busy || loading) { LabLive.stop(); loading = false; $('load-model').hidden = $('engine').value !== 'live'; $('model-progress').hidden = true; }
-    loop = new LabAgent.AgentLoop($('engine').value === 'live' ? LabLive.decide : LabAgent.rehearsalDecide);
+    loop = new LabAgent.AgentLoop($('engine').value === 'live' ? LabLive.decide : LabAgent.rehearsalDecide, LabAgent.goal, LabLive.buildRequest);
     $('console').replaceChildren(empty.cloneNode(true)); $('answer').hidden = true; $('announcement').textContent = '';
     for (const stage of $('stages').querySelectorAll('[data-stage]')) { stage.classList.remove('active'); stage.removeAttribute('aria-current'); }
     for (const row of $('files').children) row.classList.remove('used');
