@@ -121,3 +121,10 @@ Any other static host can serve the same folder unchanged.
 - `tests/agent.test.mjs`: Node built-in tests for evidence consistency, tools, calculations, event ordering, completion, concurrent-step protection and error recovery.
 
 Run `npm test` with a modern Node.js version. There are no npm dependencies to install for rehearsal or tests.
+
+### Verified on 29 September 2026
+
+- All 9 automated tests passed.
+- Browser checks covered all 30 rehearsal events, full Auto completion, pause/resume, restart, Raw view, current-event highlighting, source dialogs and Escape dismissal.
+- Desktop and 390px-wide layouts were inspected with screenshots; the narrow layout had no horizontal page overflow.
+- The optional Qwen3 model downloaded and loaded in the test browser, then completed a real 12-event investigation. It selected `list_files`, `search_files`, and `read_file` and identified the Newcastle conveyor power-supply failure. This validates the integration on that environment, not every WebGPU device or future model run.
