@@ -1,5 +1,0 @@
-INC-042 | 2026-09-28 | Newcastle distribution centre (WH-04)
-Conveyor controller power supply failed at 09:17. Maintenance replaced it and restored the conveyor at 12:42.
-Picking queues delayed ORD-107, ORD-108, ORD-109 and ORD-110. Carrier collection was held until picking recovered.
-All four orders were dispatched after restoration. No carrier-side incident was reported.
-Corrective action: stock a spare controller power supply and test the manual picking fallback.

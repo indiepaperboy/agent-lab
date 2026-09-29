@@ -1,6 +1,0 @@
-2026-09-28 08:00 WH-01 dispatch service healthy.
-2026-09-28 08:00 WH-02 dispatch service healthy.
-2026-09-28 09:17 WH-04 conveyor controller unavailable; automatic picking stopped.
-2026-09-28 09:22 WH-04 outbound dispatch queue growing; manual picking enabled.
-2026-09-28 12:42 WH-04 conveyor controller restored; automatic picking resumed.
-2026-09-28 13:25 WH-04 outbound dispatch queue cleared.
