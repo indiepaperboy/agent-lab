@@ -3,9 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile,readdir} from 'node:fs/promises';
 import '../src/data.js';
 import '../src/tools.js';
-import '../src/agent.js';
-import '../src/tutorial.js';
-import '../src/export.js';
+import '../src/lesson.js';
 const T=LabTools,run=(name,args)=>T.execute(name,args), fresh=()=>T.useSample();
 const tool=(name,args={})=>({type:'tool',summary:'Run '+name,tool:name,args});
 test('embedded sample exactly matches canonical source files',async()=>{
@@ -42,34 +40,20 @@ test('invalid inputs are rejected atomically, including duplicate IDs and mixed 
 test('duplicate references remain ambiguous even with the same cost centre',()=>{
  fresh();const {consumption:c,references:r}=T.snapshot().inputs;r.push({...r[0]});T.load(c,r);run('reconcile_inventory');assert.equal(T.snapshot().report.rows[0].reason_code,'ambiguous_reference');
 });
-test('CSV export quotes text, preserves signed costs and neutralises formula strings',()=>{
- const text=LabExport.csv([{row_id:'=1+1',description:'say "hi", please',inventory_cost:'-12.50'}]);const rows=T.parseCSV(text);assert.equal(rows[0].row_id,"'=1+1");assert.equal(rows[0].description,'say "hi", please');assert.equal(rows[0].inventory_cost,'-12.50');
-});
 test('unknown tools and malformed requests return errors without escaping allowlist',()=>{
  for(const [name,args]of [['__proto__',{}],['toString',{}],['read_file',{}],['inspect_inputs',[]],['search_references',{row_id:'missing',query:''}]])assert.equal(run(name,args).ok,false);
 });
-test('each click advances one observable event; tool request does not execute',async()=>{
- fresh();const loop=new LabAgent.AgentLoop(LabAgent.rehearsalDecide);
- for(const stage of ['GOAL','ASK','DECIDE','TOOL']){const before=loop.events.length;assert.equal((await loop.next()).stage,stage);assert.equal(loop.events.length,before+1);assert.equal(loop.history.length,0);}
- assert.equal((await loop.next()).stage,'OBSERVE');assert.equal(loop.history.length,1);
-});
-test('full rehearsal reviews all five exceptions and completes in 56 events',async()=>{
- fresh();const loop=new LabAgent.AgentLoop(LabAgent.rehearsalDecide);while(!loop.done){assert.ok(loop.events.length<60);await loop.next();}
- assert.equal(loop.events.length,56);assert.equal(loop.history.length,13);assert.ok(loop.history.every(h=>h.result.ok));assert.equal(run('get_report').data.reviewed_exceptions,5);assert.match(loop.events.at(-1).data.answer,/AUD 900.00/);assert.equal(await loop.next(),null);
-});
-test('ASK exposes exact model request with only returned observations',async()=>{
- fresh();let received;const loop=new LabAgent.AgentLoop(async(h,g,r)=>{received=r;return tool('inspect_inputs');},LabAgent.goal,LabAgent.buildRequest);
- await loop.next();const ask=await loop.next();assert.equal(received,undefined);assert.equal(ask.observations,0);assert.equal(ask.data.previous_results.length,0);
- await loop.next();assert.deepEqual(received,ask.data);await loop.next();await loop.next();const next=await loop.next();assert.equal(next.observations,1);assert.match(JSON.stringify(next.data.previous_results.at(-1)),/consumption_rows/);assert.equal(ask.data.previous_results.length,0);
-});
-test('pending model calls cannot double advance and failures are retryable',async()=>{
- let resolve;const loop=new LabAgent.AgentLoop(()=>new Promise(r=>resolve=r));await loop.next();await loop.next();const pending=loop.next();assert.equal(await loop.next(),null);resolve(tool('inspect_inputs'));assert.equal((await pending).stage,'DECIDE');
- let fails=true;const retry=new LabAgent.AgentLoop(async()=>{if(fails)throw Error('offline');return tool('inspect_inputs');});await retry.next();await retry.next();await assert.rejects(retry.next(),/offline/);assert.equal(retry.busy,false);fails=false;assert.equal((await retry.next()).stage,'DECIDE');
-});
-test('final answers require a computed report and teaching notes reflect real results',async()=>{
- fresh();const loop=new LabAgent.AgentLoop(async()=>({type:'answer',summary:'done',answer:'made up',sources:[]}));await loop.next();await loop.next();await assert.rejects(loop.next(),/get_report/);
- assert.match(LabTutorial.explain({stage:'ASK',observations:0},false).next,/simulated/);
- assert.match(LabTutorial.explain({stage:'ASK',observations:0},true).why,/explicitly tell/);
- assert.match(LabTutorial.explain({stage:'OBSERVE',tool:'search_references',data:{ok:true,data:[]}},true).what,/no supporting reference/);
- assert.match(LabTutorial.explain({stage:'OBSERVE',tool:'record_review',data:{ok:true,data:{row_id:'C-006'}}},true).what,/No allocation/);
+test('short lesson executes tools only at the three tool steps and preserves unresolved cost',()=>{
+ const lesson=new LabLesson.Lesson();
+ for(let i=0;i<12;i++){
+  const e=lesson.next();assert.equal(e.index,i);assert.equal(lesson.events.length,i+1);
+  assert.equal(!!e.request,[3,6,9].includes(i));
+  if(i<3)assert.equal(T.snapshot().report,null);
+ }
+ assert.equal(lesson.done,true);assert.equal(lesson.next(),null);
+ assert.deepEqual(lesson.results.search.map(r=>r.reference),['JOB-1050','JOB-1051']);
+ const r=T.snapshot().report;assert.equal(r.allocated_cents,69000);assert.equal(r.unresolved_cents,90000);
+ assert.equal(r.rows[5].status,'exception');assert.deepEqual(r.rows[5].candidate_rows,[5,6]);
+ assert.equal(r.rows.filter(r=>r.review_note).length,1);
+ const restart=new LabLesson.Lesson();assert.equal(restart.index,-1);assert.equal(T.snapshot().report,null);
 });
